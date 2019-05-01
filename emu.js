@@ -120,7 +120,10 @@ class chip8 {
             },
             0x7000: () => {
                 log(`Add ${that.opcode & 0xff} to VX`);
-                that.reg[that.vx] += that.opcode & 0xff;
+                let res = (that.opcode & 0xff) + that.reg[that.vx];
+                if (res > 0xFF) {
+                    that.reg[that.vx] = res - 0x100;
+                } else that.reg[that.vx] = res;
             },
             0x8000: () => {
                 let eop = that.opcode & 0xf00f;
@@ -152,8 +155,19 @@ class chip8 {
             },
             0x8FF4: () => {
                 log("Add VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.");
-                if((that.reg[that.vx] + that.reg[that.vy]) > 0xff) that.reg[0xf] = 1;
-                else that.reg[0xf] = 0;
+                // if((that.reg[that.vx] + that.reg[that.vy]) > 0xff) that.reg[0xf] = 1;
+                // else that.reg[0xf] = 0;
+
+                let result = that.reg[that.vx] + that.reg[that.vy];
+
+                if (result > 0xFF) {
+                    that.reg[that.vx] = result - 0x100;
+                    that.reg[0xF] = 0x1;
+                } else {
+                    that.reg[that.vx] = result;
+                    that.reg[0xF] = 0x0;
+                }
+
             },
             0x8FF5: () => {
                 log("VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.");
@@ -182,7 +196,7 @@ class chip8 {
             },
             0x9000: () => {
                 log(`Skip the next instruction if VX doesn't equal VY. (${that.reg[that.vx] !== that.reg[that.vy]})`);
-                if(that.reg[that.vx] !== that.reg[that.vy]) that.pc +=2;
+                if(that.reg[that.vx] !== that.reg[that.vy]) that.pc += 2;
             },
             0xA000: () => {
                 log(`Set I (${that.index}) to the address ${that.opcode & 0x0fff}.`);
@@ -199,6 +213,7 @@ class chip8 {
                 that.reg[that.vx] &= 0xff;
             },
             0xD000: () => {
+                log("draw.");
                 that.reg[0xf] = 0;
                 let x = that.reg[that.vx] & 0xff,
                     y = that.reg[that.vy] & 0xff,
@@ -214,7 +229,7 @@ class chip8 {
                         let mask = 1 << 8-pixel_offset;
                         let curr_pixel = (curr_row & mask) >> (8 - pixel_offset);
                         that.screen[loc] ^= curr_pixel;
-                        if(that.screen === 0) that.reg[0xf] = 1;
+                        if(that.screen[loc] === 0) that.reg[0xf] = 1;
                         else that.reg[0xf] = 0;
                     }
                     row++;
@@ -288,12 +303,12 @@ class chip8 {
             0xF055: () => {
                 log("Store V0 to VX in memory starting at address I.");
                 for(let i = 0; i <= that.vx; i++) that.memory[that.index + i] = that.reg[i];
-                that.index += (that.vx) + 1;
+                that.index += (that.vx + 1);
             },
             0xF065: () => {
                 log("Fill V0 to VX with values from memory starting at address I.");
                 for(let i = 0; i <= that.vx; i++) that.reg[i] = that.memory[that.index + i];
-                that.index += (that.vx) + 1;
+                that.index += (that.vx + 1);
             }
         };
 
@@ -325,7 +340,7 @@ class chip8 {
 
             for (let i = 0; i < 80; i++) this.memory[i] = fonts[i];
         };
-        let cycle = () => {
+        this.cycle = () => {
             this.opcode = (this.memory[this.pc] << 8) | this.memory[this.pc + 1];
             let eop = this.opcode & 0xf000;
             log(`[${this.pc}] ` + "Opcode: " + eop);
@@ -353,7 +368,7 @@ class chip8 {
                 if(sound_t === 0 && this.BEEP) buzz.play();
             }
         };
-        let draw = () => {
+        this.draw = () => {
             if(!should_draw) return;
             should_draw = false;
             let i = 0;
@@ -368,13 +383,13 @@ class chip8 {
                 i++;
             }
         };
-        document.addEventListener("keyup", e => {
+        document.addEventListener("keydown", e => {
             if(keys[e.key.toUpperCase()] === undefined) return;
             log("Key press: " + e.key);
             that.keypress[keys[e.key.toUpperCase()]] = 1;
             if(this.keywait) this.keywait = false;
         });
-        document.addEventListener("keydown", e => {
+        document.addEventListener("keyup", e => {
             if(keys[e.key.toUpperCase()] === undefined) return;
             log("Key release: " + e.key);
             that.keypress[keys[e.key.toUpperCase()]] = 0;
@@ -394,8 +409,8 @@ class chip8 {
             let t = setInterval(() => {
                 if(this.pause) return;
                 if(this.exit || warns >= 5) clearInterval(t);
-                cycle();
-                draw();
+                this.cycle();
+                this.draw();
             }, 6);
         }
 

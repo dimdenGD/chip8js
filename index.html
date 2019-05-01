@@ -8,8 +8,8 @@
     <title>8chip emulator written in JS</title>
     <style>
         #vp {
-            width: 400px;
-            height: 200px;
+            width: 256px;
+            height: 128px;
         }
         * {
             font-family: monospace;
@@ -21,6 +21,7 @@
 <input id="file" type="file"/>
 <button id="init" onclick="processor.stop();processor.init();">Init | clear</button>
 <input id="pause" type="checkbox"/> <span>Pause</span>
+<button id="next" onclick="processor.cycle();processor.draw();">Next</button>
 <br>
 <br>
 <canvas width="64" height="32" id="vp"></canvas>
